@@ -1,6 +1,8 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
+
+import numpy as np
 from PIL import Image
 from PIL import ImageTk
 import logging
@@ -20,16 +22,36 @@ global DISPLAY_WIDTH
 
 global REF_LENGTH_PIXCELS
 global REF_LENGTH_MM
+global TARGET_RESOLUTION
 
-global REFERENCE_AREA_FRACTION
-global MARKER_AREA_FRACTION
+global REFERENCE_AREA
+global MARKER_AREA
+global REFERENCE_AREA_FRAC
+global MARKER_AREA_FRAC
+
+global LEFT
+global RIGHT
+global TOP
+global BOTTOM
+
+global IMPORT_CROP_TOP
+global IMPORT_CROP_BOTTOM
+global IMPORT_CROP_LEFT
+global IMPORT_CROP_RIGHT
+global IMPORT_SCALE
 
 IMG_DIR = "no directory selected"
 IMG_INDEX = 0
 FILE_NAMES = []
 
-DISPLAY_WIDTH = 500
-DISPLAY_HEIGHT = 750
+DISPLAY_WIDTH = 666
+DISPLAY_HEIGHT = 500
+
+LEFT = 0
+RIGHT = DISPLAY_WIDTH
+TOP = 0
+BOTTOM = DISPLAY_HEIGHT
+
 
 class TopFrame():
     def __init__(self, master):
@@ -63,8 +85,8 @@ class TopFrame():
 
         ## define StringVars
         self.thumbnail_stringVar = tk.StringVar()
-        self.thumbnail_stringVar.set('No Image'
-                                     )
+        self.thumbnail_stringVar.set('No Image')
+
         ## Define Thumbnail
         self.thumbnail_canvas = tk.Canvas(self.frame, width=self.thumbnail_width, height=self.thumbnail_height, bg='#C8C8C8')
         self.thumbnail_label = tk.Label(self.frame, textvariable=self.thumbnail_stringVar, font=('none 12'))
@@ -110,8 +132,12 @@ class TopFrame():
         self.new_dimension_stringVar.set('')
         self.new_size_stringvar = tk.StringVar()
         self.new_size_stringvar.set('')
+        self.area_frac_stringvar = tk.StringVar()
+        self.area_frac_stringvar.set('')
 
         ## define labels
+        self.area_frac_labels = tk.Label(self.frame, text='Ratio of Reference Area & Marker Area', font=('none 12 bold'))
+        self.area_frac_txt = tk.Label(self.frame, textvariable=self.area_frac_stringvar, font=('none 12'))
         self.ref_ratio_label = tk.Label(self.frame, text='Pixcel / mm Reference', font=('none 12 bold'))
         self.ref_ratio_txt = tk.Label(self.frame, textvariable=self.ratio_stringVar, font=('none 12'))
         self.new_dimension_label = tk.Label(self.frame, text='Image New Dimension', font=('none 12 bold'))
@@ -120,12 +146,24 @@ class TopFrame():
         self.new_size_txt = tk.Label(self.frame, textvariable=self.new_size_stringvar, font=('none 12'))
 
         ## grid labels
+        self.area_frac_labels.grid(column=3, row=0)
+        self.area_frac_txt.grid(column=3, row=1)
         self.ref_ratio_label.grid(column=3, row=2)
         self.ref_ratio_txt.grid(column=3, row=3)
         self.new_dimension_label.grid(column=3, row=4)
         self.new_dimension_txt.grid(column=3, row=5)
         self.new_size_label.grid(column=3, row=6)
         self.new_size_txt.grid(column=3, row=7)
+
+        ## define Buttons
+        self.calc_new_image = tk.Button(self.frame, width=20, text='Calc New Image', font='none 12',
+                                  command=self.Calc_New_Image)
+        self.load_and_process = tk.Button(self.frame, width=20, text='Load and Process', font='none 12',
+                                          command=self.Load_and_Process)
+
+        ## grid buttons
+        self.calc_new_image.grid(column=4,row=0)
+        self.load_and_process.grid(column=4,row=1)
 
     def Load_Thumbnail(self):
         global IMG_PATH
@@ -158,8 +196,6 @@ class TopFrame():
         IMG_PATH = img_path
         ORIG_WIDTH = width
         ORIG_HEIGHT = height
-
-
     def Load_File_Names(self):
         global FILE_NAMES
 
@@ -178,7 +214,6 @@ class TopFrame():
         except Exception as e:
             logging.error(e)
             logging.error('Failed to load file names in Def_File_Names')
-
     def Define_Source_Folder(self):
         global IMG_DIR
 
@@ -187,12 +222,10 @@ class TopFrame():
         self.img_dir_stringVar.set(img_dir)
 
         IMG_DIR = img_dir
-
     def On_Image_Folder(self):
         self.Define_Source_Folder()
         self.Load_File_Names()
         self.Load_Thumbnail()
-
     def Index_in_Range(self, increment):
         global IMG_INDEX
 
@@ -214,7 +247,6 @@ class TopFrame():
         self.img_index = new_index
 
         IMG_INDEX = new_index
-
     def On_plus(self,increment):
         try:
             self.Index_in_Range(increment)
@@ -222,6 +254,78 @@ class TopFrame():
 
         except Exception as e:
             logging.error(e)
+    def Calc_New_Image(self):
+        global IMPORT_SCALE
+        global IMPORT_CROP_TOP
+        global IMPORT_CROP_BOTTOM
+        global IMPORT_CROP_LEFT
+        global IMPORT_CROP_RIGHT
+        global REFERENCE_AREA_FRAC
+        global MARKER_AREA_FRAC
+
+        try:
+            display_scale_x = DISPLAY_WIDTH/ORIG_WIDTH
+            display_scale_y = DISPLAY_HEIGHT/ORIG_HEIGHT
+            display_scale = (display_scale_y+display_scale_x)/2
+
+            IMPORT_SCALE = (REF_LENGTH_MM/(TARGET_RESOLUTION*0.5))/(REF_LENGTH_PIXCELS / display_scale)
+
+            scale_change = IMPORT_SCALE/display_scale
+
+            IMPORT_CROP_TOP = int(TOP*scale_change)
+            IMPORT_CROP_BOTTOM = int(BOTTOM*scale_change)
+            IMPORT_CROP_LEFT = int(LEFT*scale_change)
+            IMPORT_CROP_RIGHT = int(RIGHT*scale_change)
+
+            reference_p_mm = (REF_LENGTH_PIXCELS*scale_change)/REF_LENGTH_MM
+
+            display_area_pixcels = (BOTTOM-TOP)*(RIGHT-LEFT)
+
+            REFERENCE_AREA_FRAC = REFERENCE_AREA/display_area_pixcels
+            MARKER_AREA_FRAC = MARKER_AREA/display_area_pixcels
+
+            self.area_frac_stringvar.set(str(REFERENCE_AREA_FRAC)+ ' - '+str(MARKER_AREA_FRAC))
+            self.ratio_stringVar.set(str(reference_p_mm))
+
+            width = IMPORT_CROP_RIGHT-IMPORT_CROP_LEFT
+            height = IMPORT_CROP_BOTTOM-IMPORT_CROP_TOP
+
+            self.new_dimension_stringVar.set(str(width)+' x '+str(height))
+
+            fileSize = width * height * len(self.file_names) * 16 * 0.125 * 0.000000001
+
+            self.new_size_stringvar.set(str(fileSize))
+
+        except Exception as e:
+            logging.error(e)
+            logging.error("Failed to Calc new image")
+    def Load_and_Process(self):
+
+        for i in range(len(FILE_NAMES)):
+
+            fileName = FILE_NAMES[i]
+            img_path = os.path.join(IMG_DIR, fileName)
+
+            try:
+                image = Image.open(img_path)
+                width, height = image.size
+                width = width*IMPORT_SCALE
+                height = height*IMPORT_SCALE
+                image = image.resize((int(width), int(height)), Image.Resampling.LANCZOS)
+                image.crop((IMPORT_CROP_TOP,IMPORT_CROP_BOTTOM,IMPORT_CROP_LEFT,IMPORT_CROP_RIGHT))
+
+                if i == 0:
+                    img_array = np.array(height,width,3,len(FILE_NAMES), dtype='float32')
+
+            except Exception as e:
+                logging.error(e)
+                logging.error('failed to load image in for loop - ' + str(img_path))
+
+            print(img_array.size())
+
+
+
+
 
 
 class MidFrame():
@@ -230,15 +334,19 @@ class MidFrame():
         self.master = master
         self.frame = tk.Frame(self.master)
 
-        self.canvas_width = 1000
-        self.canvas_height = 750
+        self.canvas_width = DISPLAY_WIDTH
+        self.canvas_height = DISPLAY_HEIGHT
 
         ## Define Canvas and Scales
         self.main_canvas = tk.Canvas(self.frame, width=self.canvas_width, height=self.canvas_height, bg='#C8C8C8')
-        self.top_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0, to=self.canvas_width)
-        self.bottom_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0, to=self.canvas_width)
-        self.left_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0, to=self.canvas_height)
-        self.right_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0, to=self.canvas_height)
+        self.top_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0,
+                                  to=self.canvas_width, command=self.On_Call_Transform)
+        self.bottom_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0,
+                                     to=self.canvas_width, command=self.On_Call_Transform)
+        self.left_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0,
+                                   to=self.canvas_height, command=self.On_Call_Transform)
+        self.right_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0,
+                                    to=self.canvas_height, command=self.On_Call_Transform)
 
         ## Grid Canvas and scales
         self.main_canvas.grid(column=1, row=1)
@@ -247,41 +355,184 @@ class MidFrame():
         self.left_scale.grid(column=0, row=1)
         self.right_scale.grid(column=2, row=1)
 
+        ## set scale default values
+        self.bottom_scale.set(self.canvas_width)
+        self.right_scale.set(self.canvas_height)
+
+        ## define RHS frame
+        self.rhs_frame = tk.Frame(self.frame)
+
+        ## define buttons
+        self.load_image = tk.Button(self.rhs_frame, width=20, text='Load Image', font='none 12',
+                                      command=self.On_Call_Load)
+        self.update = tk.Button(self.rhs_frame, width=20, text='Update', font='none 12',
+                                        command=self.Draw_Lines)
+
+        ## define Labels
+        self.ref_label_start = tk.Label(self.rhs_frame, text= 'Define X and Y start values for reference region',
+                                        font=('none 12 bold'))
+        self.ref_label_end = tk.Label(self.rhs_frame, text='Define X and Y end values for reference region',
+                                        font=('none 12 bold'))
+        self.marker_label_start = tk.Label(self.rhs_frame, text='Define X and Y start values for marker region',
+                                        font=('none 12 bold'))
+        self.marker_label_end = tk.Label(self.rhs_frame, text='Define X and Y end values for marker region',
+                                        font=('none 12 bold'))
+        self.ref_length_label = tk.Label(self.rhs_frame, text='Length of reference in mm',
+                                         font='none 12 bold')
+        self.resolution_label = tk.Label(self.rhs_frame, text='Desired Resolution',
+                                         font='none 12 bold')
+
+        ## define spinboxes
+        self.ref_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
+        self.ref_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
+        self.ref_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
+        self.ref_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
+        self.marker_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
+        self.marker_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
+        self.marker_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
+        self.marker_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
+        self.ref_length_mm = tk.Spinbox(self.rhs_frame, width=5, from_=0, to=200, command=self.Draw_Lines)
+        self.resolution = tk.Spinbox(self.rhs_frame, width=5, from_=0.1, to=2, command=self.Draw_Lines)
+
+        ## grid buttons and Spinboxes
+        self.load_image.grid(column=0, row=0, columnspan=2, sticky='N')
+        self.ref_label_start.grid(column=0,row=2, columnspan=2)
+        self.ref_start_x.grid(column=0,row=3)
+        self.ref_start_y.grid(column=1, row=3)
+        self.ref_label_end.grid(column=0, row=4, columnspan=2)
+        self.ref_end_x.grid(column=0, row=5)
+        self.ref_end_y.grid(column=1, row=5)
+        self.marker_label_start.grid(column=0, row=6, columnspan=2)
+        self.marker_start_x.grid(column=0, row=7)
+        self.marker_start_y.grid(column=1, row=7)
+        self.marker_label_end.grid(column=0, row=8, columnspan=2)
+        self.marker_end_x.grid(column=0, row=9)
+        self.marker_end_y.grid(column=1, row=9)
+        self.ref_length_label.grid(column=0, row=11)
+        self.ref_length_mm.grid(column=1,row=11)
+        self.resolution_label.grid(column=0, row=12)
+        self.resolution.grid(column=1, row=12)
+        self.update.grid(column=0, row=13,columnspan=2)
+
+        self.rhs_frame.grid(column=3, row=1)
+
     def Load_Image(self):
         try:
             image = Image.open(IMG_PATH)
             width, height = image.size
             self.canvas_width = width * (self.canvas_height/height)
-            image = image.resize((int(self.canvas_width), int(self.canvas_height)), Image.Resampling.LANCZOS)
-            image = ImageTk.PhotoImage(image)
-            self.image = image
-            self.main_canvas.create_image(0,0, image=self.image, anchor='nw')
+            self.image_pil_original = image.resize((int(self.canvas_width), int(self.canvas_height)),
+                                                   Image.Resampling.LANCZOS)
 
         except Exception as e:
             logging.error(e)
             logging.error('Failed to Load Image')
+    def Crop_Image(self,image):
+        global TOP
+        global BOTTOM
+        global LEFT
+        global RIGHT
 
+        try:
+            left = self.top_scale.get()
+            top = self.left_scale.get()
+            right = self.bottom_scale.get()
+            bottom = self.right_scale.get()
+            TOP = top
+            BOTTOM = bottom
+            LEFT = left
+            RIGHT = right
+            image_pil_croped = image.crop((left, top, right, bottom))
+            return image_pil_croped
 
+        except Exception as e:
+            logging.error(e)
+            logging.error(('Failed to crop image'))
+    def Transform_Image(self):
+        try:
+            image = self.image_pil_original
+            image_pil_cropped = self.Crop_Image(image)
+            self.image_pil_transformed = image_pil_cropped
 
+        except Exception as e:
+            logging.error(e)
+            logging.error("Failed to transform image")
+    def Draw_Lines(self):
+        global REF_LENGTH_PIXCELS
+        global REF_LENGTH_MM
+        global REFERENCE_AREA
+        global MARKER_AREA
+        global TARGET_RESOLUTION
 
+        ref_x1 = int(self.ref_start_x.get())
+        ref_y1 = int(self.ref_start_y.get())
+        ref_x2 = int(self.ref_end_x.get())
+        ref_y2 = int(self.ref_end_y.get())
+        mark_x1 = int(self.marker_start_x.get())
+        mark_y1 = int(self.marker_start_y.get())
+        mark_x2 = int(self.marker_end_x.get())
+        mark_y2 = int(self.marker_end_y.get())
 
+        self.Display_Image()
+        self.main_canvas.create_line(ref_x1,ref_y1,ref_x2,ref_y2, width=4 )
+        self.main_canvas.create_line(mark_x1, mark_y1, mark_x2, mark_y2, width=4)
+
+        ref_area = (ref_x2-ref_x1)*(ref_y2-ref_y1)
+        mark_area = (mark_x2-mark_x1)*(mark_y2-mark_y1)
+        ref_length = ref_x2-ref_x1
+
+        REFERENCE_AREA = ref_area
+        MARKER_AREA = mark_area
+        REF_LENGTH_PIXCELS = ref_length
+        REF_LENGTH_MM = int(self.ref_length_mm.get())
+        TARGET_RESOLUTION = float(self.resolution.get())
+    def Display_Image(self):
+        try:
+            self.image_tk = ImageTk.PhotoImage(self.image_pil_transformed)
+            try:
+                horizontal_centre = int(((RIGHT-LEFT)/2)+LEFT)
+                vertical_centre = int(((BOTTOM-TOP)/2)+TOP)
+
+            except Exception as e:
+                logging.error(e)
+                logging.error('Failed finding image centre'+ str(LEFT)+ '' + str(RIGHT)+ '' +
+                              str(TOP)+ '' + str(BOTTOM)+ '')
+
+            self.main_canvas.create_image(horizontal_centre, vertical_centre, image=self.image_tk, anchor='center')
+
+        except Exception as e:
+            logging.error(e)
+            logging.error("Image Failed to display")
+    def On_Call_Transform(self,a):
+        try:
+            self.Transform_Image()
+            self.Display_Image()
+
+        except Exception as e:
+            logging.error(e)
+            logging.error(("Failed On_Call_Transform"))
+    def On_Call_Load(self):
+        try:
+            self.Load_Image()
+            self.On_Call_Transform(22)
+
+        except Exception as e:
+            logging.error(e)
+            logging.error("Failed On_Call_Load")
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
         self.title('Veering Image Loader')
-        self.geometry('1250x1500')
+        self.geometry('1100x1000')
         self.mainframe = tk.Frame(self)
         self.mainframe.grid(column=0, row=0, sticky='N,W,S,E')
         self.top_frame = TopFrame(self.mainframe)
         self.top_frame.frame.grid(column=0, row=0)
         self.mid_frame = MidFrame(self.mainframe)
         self.mid_frame.frame.grid(column=0, row=1)
-
-
-
-
+        self.main_scroll = tk.Scrollbar(self.mainframe, orient='vertical')
 
 if __name__ == "__main__":
     app = App()
