@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 from PIL import ImageTk
 import logging
+import h5py
 
 logging.basicConfig(filename='VIM.log', encoding='utf-8', level=logging.DEBUG)
 logging.info('Veering Image Loader Opened')
@@ -299,8 +300,9 @@ class TopFrame():
         except Exception as e:
             logging.error(e)
             logging.error("Failed to Calc new image")
-    def Load_and_Process(self):
 
+    def Load_into_Array(self):
+        self.timeStamps = []
         for i in range(len(FILE_NAMES)):
 
             fileName = FILE_NAMES[i]
@@ -308,20 +310,45 @@ class TopFrame():
 
             try:
                 image = Image.open(img_path)
+                print("processing "+str(i)+" of "+str(len(FILE_NAMES)))
+                ts = image._getexif()[36867]
+                self.timeStamps.append(ts)
                 width, height = image.size
                 width = width*IMPORT_SCALE
                 height = height*IMPORT_SCALE
                 image = image.resize((int(width), int(height)), Image.Resampling.LANCZOS)
-                image.crop((IMPORT_CROP_TOP,IMPORT_CROP_BOTTOM,IMPORT_CROP_LEFT,IMPORT_CROP_RIGHT))
+                image = image.crop((IMPORT_CROP_LEFT, IMPORT_CROP_TOP, IMPORT_CROP_RIGHT, IMPORT_CROP_BOTTOM))
 
                 if i == 0:
-                    img_array = np.array(height,width,3,len(FILE_NAMES), dtype='float32')
+                    w,h = image.size
+                    img_array = np.zeros((h,w,3,len(FILE_NAMES)), dtype='float32')
+
+                img_array[:,:,:,i] = np.array(image)
 
             except Exception as e:
                 logging.error(e)
                 logging.error('failed to load image in for loop - ' + str(img_path))
 
-            print(img_array.size())
+            self.img_array = img_array
+
+    def Load_and_Process(self):
+        try:
+            exp_dir = filedialog.askdirectory()
+            exp_path = os.path.join(exp_dir, 'export.h5')
+            self.Load_into_Array()
+            hf = h5py.File(exp_path, 'w')
+            hf.create_dataset('IMG_ARRAY', data=self.img_array)
+            hf.create_dataset('TIME_STAMPS', data=self.timeStamps)
+            vSp_params = [REFERENCE_AREA_FRAC, MARKER_AREA_FRAC, REF_LENGTH_PIXCELS, REF_LENGTH_MM, TARGET_RESOLUTION]
+            hf.create_dataset('VSP_PARAMS', data=vSp_params)
+            hf.close()
+        except Exception as e:
+            logging.error(e)
+            logging.error("Failed to load and process")
+
+
+
+
 
 
 
