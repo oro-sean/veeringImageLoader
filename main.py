@@ -7,6 +7,7 @@ from PIL import Image
 from PIL import ImageTk
 import logging
 import h5py
+import threading
 
 logging.basicConfig(filename='VIM.log', encoding='utf-8', level=logging.DEBUG)
 logging.info('Veering Image Loader Opened')
@@ -171,6 +172,7 @@ class TopFrame():
         global ORIG_WIDTH
         global ORIG_HEIGHT
 
+
         fileName = self.file_names[self.img_index]
         img_path = os.path.join(self.img_dir,fileName)
         try:
@@ -202,9 +204,10 @@ class TopFrame():
 
         try:
             file_names = os.listdir(self.img_dir)
-            file_names = [file for file in file_names if '.JPG' in file]
+            file_names = [file for file in file_names if '.jpg' in file]
             if len(file_names) == 0:
                 logging.warning('No .jpg found')
+                self.file_names = []
 
             else:
                 self.total_stringVar.set(str(len(file_names)))
@@ -224,6 +227,7 @@ class TopFrame():
 
         IMG_DIR = img_dir
     def On_Image_Folder(self):
+        print("on Image Folder")
         self.Define_Source_Folder()
         self.Load_File_Names()
         self.Load_Thumbnail()
@@ -453,7 +457,7 @@ class MidFrame():
 
         except Exception as e:
             logging.error(e)
-            logging.error('Failed to Load Image')
+            logging.error('Failed to Load Image - Mid Frame')
     def Crop_Image(self,image):
         global TOP
         global BOTTOM
@@ -483,7 +487,7 @@ class MidFrame():
 
         except Exception as e:
             logging.error(e)
-            logging.error("Failed to transform image")
+            logging.error("Failed to transform image - midframe")
     def Draw_Lines(self):
         global REF_LENGTH_PIXCELS
         global REF_LENGTH_MM
@@ -530,7 +534,8 @@ class MidFrame():
         except Exception as e:
             logging.error(e)
             logging.error("Image Failed to display")
-    def On_Call_Transform(self,a):
+    def On_Call_Transform(self):
+        print("On_Call_Transform")
         try:
             self.Transform_Image()
             self.Display_Image()
@@ -540,8 +545,9 @@ class MidFrame():
             logging.error(("Failed On_Call_Transform"))
     def On_Call_Load(self):
         try:
+            print("in on call load")
             self.Load_Image()
-            self.On_Call_Transform(22)
+            self.On_Call_Transform()
 
         except Exception as e:
             logging.error(e)
