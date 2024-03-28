@@ -67,13 +67,13 @@ class TopFrame():
         self.img_index = 0
 
         ## Define Buttons
-        self.image_folder = tk.Button(self.frame, width=20, text='Image Folder', font='none 12', command=self.On_Image_Folder)
-        self.foward_1 = tk.Button(self.frame, width = 20, text= 'Skip Foward 1', font = 'none 12', command=lambda:self.On_plus(1))
-        self.foward_10 = tk.Button(self.frame, width = 20, text= 'Skip Foward 10', font = 'none 12', command=lambda:self.On_plus(10))
-        self.foward_100 = tk. Button(self.frame, width = 20, text= 'Skip Foward 100', font = 'none 12', command=lambda:self.On_plus(100))
-        self.back_1 = tk.Button(self.frame, width = 20, text= 'Skip Back 1', font = 'none 12', command=lambda:self.On_plus(-1))
-        self.back_10 = tk.Button(self.frame, width = 20, text= 'Skip Back 10', font = 'none 12', command=lambda:self.On_plus(-10))
-        self.back_100 = tk. Button(self.frame, width = 20, text= 'Skip Back 100', font = 'none 12', command=lambda:self.On_plus(-100))
+        self.image_folder = tk.Button(self.frame, width=20, text='Image Folder', font='none 12', command=self.On_Image_Folder_Thread)
+        self.foward_1 = tk.Button(self.frame, width = 20, text= 'Skip Foward 1', font = 'none 12', command=lambda:self.On_Plus_Thread(1))
+        self.foward_10 = tk.Button(self.frame, width = 20, text= 'Skip Foward 10', font = 'none 12', command=lambda:self.On_Plus_Thread(10))
+        self.foward_100 = tk. Button(self.frame, width = 20, text= 'Skip Foward 100', font = 'none 12', command=lambda:self.On_Plus_Thread(100))
+        self.back_1 = tk.Button(self.frame, width = 20, text= 'Skip Back 1', font = 'none 12', command=lambda:self.On_Plus_Thread(-1))
+        self.back_10 = tk.Button(self.frame, width = 20, text= 'Skip Back 10', font = 'none 12', command=lambda:self.On_Plus_Thread(-10))
+        self.back_100 = tk. Button(self.frame, width = 20, text= 'Skip Back 100', font = 'none 12', command=lambda:self.On_Plus_Thread(-100))
 
         ## Grid buttons
         self.image_folder.grid(column=0, row=0)
@@ -159,15 +159,16 @@ class TopFrame():
 
         ## define Buttons
         self.calc_new_image = tk.Button(self.frame, width=20, text='Calc New Image', font='none 12',
-                                  command=self.Calc_New_Image)
+                                  command=self.Calc_New_Image_Thread)
         self.load_and_process = tk.Button(self.frame, width=20, text='Load and Process', font='none 12',
-                                          command=self.Load_and_Process)
+                                          command=self.Load_and_Process_Thread)
 
         ## grid buttons
         self.calc_new_image.grid(column=4,row=0)
         self.load_and_process.grid(column=4,row=1)
 
     def Load_Thumbnail(self):
+        print("Load Thummbnails")
         global IMG_PATH
         global ORIG_WIDTH
         global ORIG_HEIGHT
@@ -199,6 +200,7 @@ class TopFrame():
         IMG_PATH = img_path
         ORIG_WIDTH = width
         ORIG_HEIGHT = height
+        print("End ThumbNails")
     def Load_File_Names(self):
         global FILE_NAMES
 
@@ -231,7 +233,19 @@ class TopFrame():
         self.Define_Source_Folder()
         self.Load_File_Names()
         self.Load_Thumbnail()
+        print("end image folder")
+
+    def On_Image_Folder_Thread(self):
+        print("on Image Folder Thread")
+        thread = threading.Thread(target=self.On_Image_Folder(), daemon=True)
+        thread.start()
+
+    def Index_in_Range_Thread(self, increment):
+        print("Index in Range Thread")
+        thread = threading.Thread(target=self.Index_in_Range(increment), daemon=True)
+        thread.start()
     def Index_in_Range(self, increment):
+        print("Index in Range")
         global IMG_INDEX
 
         new_index = self.img_index + increment
@@ -253,13 +267,21 @@ class TopFrame():
 
         IMG_INDEX = new_index
     def On_plus(self,increment):
+        print("On_plus")
         try:
-            self.Index_in_Range(increment)
+            self.Index_in_Range_Thread(increment)
             self.Load_Thumbnail()
 
         except Exception as e:
             logging.error(e)
+
+    def On_Plus_Thread(self,increment):
+        print("On_Plus_Thread")
+        thread = threading.Thread(target=self.On_plus(increment), daemon=True)
+        thread.start()
+
     def Calc_New_Image(self):
+        print("Calc_New_Image")
         global IMPORT_SCALE
         global IMPORT_CROP_TOP
         global IMPORT_CROP_BOTTOM
@@ -304,8 +326,13 @@ class TopFrame():
         except Exception as e:
             logging.error(e)
             logging.error("Failed to Calc new image")
+    def Calc_New_Image_Thread(self):
+        print("in Calc_New_Image_Thread")
+        thread = threading.Thread(target=self.Calc_New_Image(), daemon=True)
+        thread.start()
 
     def Load_into_Array(self):
+        print("Loading Image")
         self.timeStamps = []
         for i in range(len(FILE_NAMES)):
 
@@ -350,14 +377,10 @@ class TopFrame():
             logging.error(e)
             logging.error("Failed to load and process")
 
-
-
-
-
-
-
-
-
+    def Load_and_Process_Thread(self):
+        print('In Load_and_Process_Thread')
+        thread = threading.Thread(target=self.Load_and_Process(), daemon=True)
+        thread.start()
 
 class MidFrame():
     def __init__(self, master):
@@ -371,13 +394,13 @@ class MidFrame():
         ## Define Canvas and Scales
         self.main_canvas = tk.Canvas(self.frame, width=self.canvas_width, height=self.canvas_height, bg='#C8C8C8')
         self.top_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0,
-                                  to=self.canvas_width, command=self.On_Call_Transform)
+                                  to=self.canvas_width, command=self.On_Call_Load_Thread)
         self.bottom_scale = tk.Scale(self.frame, orient='horizontal', length=self.canvas_width, from_=0,
-                                     to=self.canvas_width, command=self.On_Call_Transform)
+                                     to=self.canvas_width, command=self.On_Call_Load_Thread)
         self.left_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0,
-                                   to=self.canvas_height, command=self.On_Call_Transform)
+                                   to=self.canvas_height, command=self.On_Call_Load_Thread)
         self.right_scale = tk.Scale(self.frame, orient='vertical', length=self.canvas_height, from_=0,
-                                    to=self.canvas_height, command=self.On_Call_Transform)
+                                    to=self.canvas_height, command=self.On_Call_Load_Thread)
 
         ## Grid Canvas and scales
         self.main_canvas.grid(column=1, row=1)
@@ -395,9 +418,9 @@ class MidFrame():
 
         ## define buttons
         self.load_image = tk.Button(self.rhs_frame, width=20, text='Load Image', font='none 12',
-                                      command=self.On_Call_Load)
+                                      command=lambda:self.On_Call_Load_Thread("From Button"))
         self.update = tk.Button(self.rhs_frame, width=20, text='Update', font='none 12',
-                                        command=self.Draw_Lines)
+                                        command=self.Draw_Lines_Thread)
 
         ## define Labels
         self.ref_label_start = tk.Label(self.rhs_frame, text= 'Define X and Y start values for reference region',
@@ -414,16 +437,16 @@ class MidFrame():
                                          font='none 12 bold')
 
         ## define spinboxes
-        self.ref_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
-        self.ref_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
-        self.ref_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
-        self.ref_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
-        self.marker_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
-        self.marker_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
-        self.marker_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines)
-        self.marker_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines)
-        self.ref_length_mm = tk.Spinbox(self.rhs_frame, width=5, from_=0, to=200, command=self.Draw_Lines)
-        self.resolution = tk.Spinbox(self.rhs_frame, width=5, from_=0.1, to=2, command=self.Draw_Lines)
+        self.ref_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines_Thread)
+        self.ref_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines_Thread)
+        self.ref_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines_Thread)
+        self.ref_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines_Thread)
+        self.marker_start_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines_Thread)
+        self.marker_start_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines_Thread)
+        self.marker_end_x = tk.Spinbox(self.rhs_frame, width=5, from_=LEFT, to=RIGHT, command=self.Draw_Lines_Thread)
+        self.marker_end_y = tk.Spinbox(self.rhs_frame, width=5, from_=TOP, to=BOTTOM, command=self.Draw_Lines_Thread)
+        self.ref_length_mm = tk.Spinbox(self.rhs_frame, width=5, from_=0, to=200, command=self.Draw_Lines_Thread)
+        self.resolution = tk.Spinbox(self.rhs_frame, width=5, from_=0.1, to=2, command=self.Draw_Lines_Thread)
 
         ## grid buttons and Spinboxes
         self.load_image.grid(column=0, row=0, columnspan=2, sticky='N')
@@ -517,6 +540,12 @@ class MidFrame():
         REF_LENGTH_PIXCELS = ref_length
         REF_LENGTH_MM = int(self.ref_length_mm.get())
         TARGET_RESOLUTION = float(self.resolution.get())
+
+    def Draw_Lines_Thread(self):
+        print("Draw_Lines_Thread")
+        thread = threading.Thread(target=self.Draw_Lines(), daemon=True)
+        thread.start()
+
     def Display_Image(self):
         try:
             self.image_tk = ImageTk.PhotoImage(self.image_pil_transformed)
@@ -534,29 +563,38 @@ class MidFrame():
         except Exception as e:
             logging.error(e)
             logging.error("Image Failed to display")
-    def On_Call_Transform(self):
-        print("On_Call_Transform")
-        try:
-            self.Transform_Image()
-            self.Display_Image()
 
-        except Exception as e:
-            logging.error(e)
-            logging.error(("Failed On_Call_Transform"))
-    def On_Call_Load(self):
+    # def On_Call_Transform(self):
+    #     print("On_Call_Transform")
+    #     try:
+    #         self.Transform_Image()
+    #         self.Display_Image()
+    #
+    #     except Exception as e:
+    #         logging.error(e)
+    #         logging.error(("Failed On_Call_Transform"))
+
+    def On_Call_Load(self,dummy):
         try:
             print("in on call load")
+            print(dummy)
             self.Load_Image()
-            self.On_Call_Transform()
+            self.Transform_Image()
+            self.Display_Image()
+            #self.On_Call_Transform()
 
         except Exception as e:
             logging.error(e)
             logging.error("Failed On_Call_Load")
 
+    def On_Call_Load_Thread(self,dummy):
+        print("On_Call_Load_Thread")
+        thread = threading.Thread(target=self.On_Call_Load(dummy), daemon=True)
+        thread.start()
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-
         self.title('Veering Image Loader')
         self.geometry('1100x1000')
         self.mainframe = tk.Frame(self)
